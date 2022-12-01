@@ -4,9 +4,10 @@ import sys
 import argparse
 import time
 import datetime
-import utils
+curr_plf_loc = os.path.split(os.path.abspath(__file__))[0]
+sys.path.extend([curr_plf_loc]+[os.path.join(curr_plf_loc,i) for i in os.listdir(curr_plf_loc)])
 import pipeline
-
+import utils
 # import loss.losses as losses
 # import model.models as models
 
@@ -26,11 +27,11 @@ def main():
     
     parser_tr.add_argument('-i','--input',dest='data_dir',help='Input')
     parser_tr.add_argument('-o','--output',dest='output_dir',help='Output')
-    parser_tr.add_argument('-m','--model_type',choices=['unet','rednet'],help='Type of model')
+    parser_tr.add_argument('-m','--model_type',choices=['unet','rednet10','rednet20','rednet30'],help='Type of model')
     parser_tr.add_argument('-l','--loss',dest='loss_type',
                            choices=['mse','mae','vgg','ssim'],
                            help='Loss type')
-    
+    parser_tr.add_argument('-mk','--model_keyword_arg_file',type=str,default=None,help='File of Keyword arguments for model parameters')
     
     parser_tr.add_argument('--learning_rate',type=float,dest='lr',default=1e-4,help='Learning rate')
     parser_tr.add_argument('--batch_size',type=int,default=16,help='Batch size')
@@ -38,8 +39,8 @@ def main():
     parser_tr.add_argument('--iterations',type=int,default=1e6,help='Iteration')
     parser_tr.add_argument('--checkpoint',type=str,default=None,help='Checkpoint file if inferrable')
     parser_tr.add_argument('--start_epoch',type=int,default=0,help='Checkpoint file if inferrable')
-    parser_tr.add_argument('--early_stop_patience',type=int,default=10,help='early_stop_patience')
-    
+    parser_tr.add_argument('--early_stop_patience',type=int,default=40,help='early_stop_patience')
+    parser_tr.add_argument('--device',type=str,default=None,help='Device to use')
     
     parser_rn = subparsers.add_parser('denoise',help='Denoise data')
     
@@ -49,9 +50,12 @@ def main():
                            choices=['mse','mae','vgg','ssim'],
                            help='Loss type')
     parser_rn.add_argument('-o','--output',dest='output_dir',help='Output')
-    
+    parser_rn.add_argument('--device',type=str,default=None,help='Device to use')
     
     args = parser.parse_args()
+    
+    if args.device:
+        os.environ['user_defined_device'] = args.device
     
     if args.job == 'train':
         pipeline.run_train(**args.__dict__)

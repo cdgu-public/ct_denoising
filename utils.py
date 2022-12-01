@@ -10,14 +10,21 @@ import math
 curr_plf_loc = os.path.split(os.path.abspath(__file__))[0]
 sys.path.extend([curr_plf_loc]+[os.path.join(curr_plf_loc,i) for i in os.listdir(curr_plf_loc)])
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+if 'user_defined_device' in os.environ:
+    device = os.environ['user_defined_device']
+    if type(device) == str:
+        device = torch.device(device)
+else:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
 # Some constants
 rgb_weights = torch.FloatTensor([65.481, 128.553, 24.966]).to(device)
 imagenet_mean = torch.FloatTensor([0.485, 0.456, 0.406]).unsqueeze(1).unsqueeze(2)
 imagenet_std = torch.FloatTensor([0.229, 0.224, 0.225]).unsqueeze(1).unsqueeze(2)
 imagenet_mean_cuda = torch.FloatTensor([0.485, 0.456, 0.406]).to(device).unsqueeze(0).unsqueeze(2).unsqueeze(3)
 imagenet_std_cuda = torch.FloatTensor([0.229, 0.224, 0.225]).to(device).unsqueeze(0).unsqueeze(2).unsqueeze(3)
+
+MODEL_DEFAULT_PARAM_D = os.path.join(os.path.split(os.path.abspath(__file__))[0],'default_params')
 
 
 def create_data_lists(train_folders, test_folders, min_size, output_folder):

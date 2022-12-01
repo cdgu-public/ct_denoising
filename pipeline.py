@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """pipeline for training/evaluation"""
 import os
+import json
 import argparse
 import time
 import pandas as pd
@@ -16,6 +17,7 @@ import matplotlib.pyplot as plt
 
 cudnn.benchmark = True
 
+
 def run_train(data_dir,
               model_type='unet',
               loss_type='mse',
@@ -26,7 +28,7 @@ def run_train(data_dir,
               start_epoch:int=0,
               lr:float=1e-4,
               device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-              early_stop_patience:int=20,
+              early_stop_patience:int=None,
               checkpoint_step:int=10,
               output_dir:str='./',
               print_freq:int=500,
@@ -39,7 +41,10 @@ def run_train(data_dir,
     """
     Training.
     """
-    
+    if not device:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    elif type(device) == str:
+        device = torch.device(device)
 #     global start_epoch, epoch, checkpoint
     print("Training started.")
     # Initialize model or load checkpoint
@@ -63,7 +68,7 @@ def run_train(data_dir,
     
     test_dataset = dataset.CTDataset(
         data_dir=test_data_loc,hu_transformer=hu_transformer,transformer=transformer)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True)  
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True)
     
     train_model(
         train_loader=train_loader,
@@ -77,7 +82,7 @@ def run_train(data_dir,
         iterations=iterations,
         start_epoch=start_epoch,
         lr=lr,
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        device=device,
         early_stop_patience=early_stop_patience,
         output_dir=output_dir,
         grad_clip=grad_clip,
@@ -132,6 +137,7 @@ def train_model(train_loader,
                 print_freq:int=500,
                 workers:int=4,
                 grad_clip=None,
+                model_keyword_arg_file:str=None,
 #                 crop_size=96,
                ):
 #     global start_epoch, epoch, checkpoint
@@ -141,9 +147,18 @@ def train_model(train_loader,
     if checkpoint is None:
         if type(model_type) == str:
             model_cls = model_gls.model_glossary()[model_type]
-            if model_type == 'unet':
+            if model_keyword_arg_file and type(model_keyword_arg_file)==str:
+                if os.path.isfile(model_keyword_arg_file):
+                    with open(model_keyword_arg_file,'rb') as f:
+                        kwargs = json.loads(f.read().decode())
+                    model = model_cls(**kwargs)
+                else:
+                    with open(os.path.join(utils.MODEL_DEFAULT_PARAM_D,model_type),'rb') as f:
+                        kwargs = json.loads(f.read().decode())
+                    model = model_cls(**kwargs)
+            elif model_type == 'unet':
                 model = model_cls(n_channels=n_channels, n_classes=n_channels, bilinear=False)
-            elif model_type == 'rednet':
+            elif model_type == 'rednet10':
                 model = model_cls()
         else:
             model = model_type
@@ -175,7 +190,10 @@ def train_model(train_loader,
     # Total number of epochs to train for
     loss_by_e = {}
     epochs = int(iterations // len(train_loader) + 1)
-    curr_loss = float('inf')
+#     if loss_type == 'ssim':
+#         curr_min_loss = -1.
+#     else:
+    curr_min_loss = float('inf')
     curr_loss_pat = 0
     with open(_val_loss_f,'w') as f:
         f.write('epoch\tvalidation_loss\tepoch_time\n')
@@ -202,11 +220,14 @@ def train_model(train_loader,
             print(f"{epoch}:\t{val_loss.avg}")
             
             loss_by_e[epoch] = val_loss.avg
-            if val_loss.avg > curr_loss:
-                curr_loss_pat += 1
-            else:
-                curr_loss = val_loss.avg
-                curr_loss_pat = 0
+            if type(early_stop_patience) == int:
+                if loss_type == 'ssim' and (abs(1.0-val_loss.avg) > abs(1.0-curr_min_loss)): # -1<ssim<1
+                    curr_loss_pat += 1
+                elif loss_type != 'ssim' and (val_loss.avg > curr_min_loss):
+                    curr_loss_pat += 1
+                else:
+                    curr_min_loss = val_loss.avg
+                    curr_loss_pat = 0
                 
             with open(_val_loss_f,'a') as f:
                 f.write(f"{epoch}\t{val_loss.avg}\t{time.time()-e_start:.3f}\n")
@@ -216,6 +237,9 @@ def train_model(train_loader,
                 if curr_loss_pat > early_stop_patience:
                     print('Early stopped at epoch %s'%epoch)
                     break
+            else:
+                if not epoch%checkpoint_step and epoch > checkpoint_step:
+                    os.system(f'rm {ckpt_dir}/checkpoint.{epoch-checkpoint_step:04d}.pth.tar')
     # Pickup the best model
     epoch_ser = pd.Series(loss_by_e)
     min_loss_epoch = epoch_ser.index[np.argmin(epoch_ser)]
@@ -388,6 +412,8 @@ def evaluation_step(dataloader,
                         _curr_img_f = os.path.join(save_to,f"{i}.{j}.{_tag}.png")
 
                         _curr_img = _img_obj[j].squeeze()
+                        plt.xticks([])
+                        plt.yticks([])
                         plt.imshow(_curr_img, cmap='gray')
                         plt.savefig(_curr_img_f)
             
