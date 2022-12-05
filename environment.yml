@@ -63,6 +63,7 @@ dependencies:
   - cuda-visual-tools=11.7.1=0
   - cudatoolkit=11.7.0=hd8887f6_10
   - cycler=0.11.0=pyhd8ed1ab_0
+  - cython=0.29.32=py37hd23a5d3_0
   - dbus=1.13.6=h5008d03_3
   - debugpy=1.6.3=py37hd23a5d3_0
   - decorator=5.1.1=pyhd8ed1ab_0
@@ -194,7 +195,7 @@ dependencies:
   - numpy=1.21.6=py37h976b520_0
   - openh264=2.3.1=h27087fc_1
   - openjpeg=2.5.0=h7d73246_1
-  - openssl=1.1.1s=h166bdaf_0
+  - openssl=1.1.1s=h0b41bf4_1
   - p11-kit=0.24.1=hc5aa10d_0
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.3.5=py37h8c16a72_0
@@ -229,6 +230,7 @@ dependencies:
   - qt-main=5.15.6=hd477bba_1
   - readline=8.1.2=h0f457ee_0
   - requests=2.28.1=pyhd8ed1ab_1
+  - scipy=1.7.3=py37hf2a6cf1_0
   - setuptools=65.5.1=pyhd8ed1ab_0
   - sip=6.6.2=py37hd23a5d3_0
   - six=1.16.0=pyh6c4a22f_0
