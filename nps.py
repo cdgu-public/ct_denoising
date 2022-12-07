@@ -5,8 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def get_nps_2d_img(img_arr):
-    fft_shifted = np.abs(np.fft.fft2(img_arr))
+# def get_nps_2d_img(img_arr):
+#     fft_shifted = np.abs(np.fft.fft2(img_arr))
+#     fft_shifted = np.fft.fftshift(fft_shifted)
+#     return fft_shifted
+
+
+def get_nps_2d_img(img_arr,bx=1.,by=1.,fft_n=None):
+    if not fft_n:
+        fft_n = np.rint(np.sqrt(np.prod(img_arr.shape))).astype(int)
+    fft_shifted = (np.abs(np.fft.fft2(img_arr-img_arr.mean(), s=(fft_n, fft_n))) /
+                np.sqrt(np.prod(img_arr.shape))) ** 2.
+    fft_shifted = fft_shifted*bx*by
     fft_shifted = np.fft.fftshift(fft_shifted)
     return fft_shifted
 
@@ -73,6 +83,7 @@ def get_radial_nps(array,
                    kernel_l=5,
                    rad=50,
                    bdia_n=10,
+                   fft_n=None,
                    cm=None,
                   ):
     # radii = [50. / dxdy, 25. / dxdy]
@@ -90,8 +101,8 @@ def get_radial_nps(array,
         for ang in angles[ind]:
             x, y = np.rint((r * np.sin(ang), r * np.cos(ang)))
             coords.append((x, y))
-
-    fft_n = 128
+    if not fft_n:
+        fft_n = np.rint(np.sqrt(np.prod(array.shape))).astype(int)
     kernel = np.ones(kernel_l) / kernel_l
     f, b = np.ones(kernel_l), np.ones(kernel_l)
     lineCollection = []
@@ -151,7 +162,14 @@ def parse_npy(file):
     return arr
 
 
-def main(ndct_img,qdct_img,pred_img,output='./output',x_0=220,y_0=128,fov_size=128):
+def main(ndct_img,
+         qdct_img,
+         pred_img,
+         output='./output',
+         x_0=220,y_0=128,fov_size=128,bx=1.,by=1.,
+         rad=30,
+         bdia_n=10,
+        ):
     output = os.path.abspath(output)
     os.makedirs(output,exist_ok=True)
     
@@ -177,24 +195,33 @@ def main(ndct_img,qdct_img,pred_img,output='./output',x_0=220,y_0=128,fov_size=1
     
     nps_2d = get_nps_2d_img(noise)
     nps_2d_fov = get_nps_2d_img(noise_fov)
-    save_img(nps_2d,os.path.join(output,'noise.nps_2d.png'))
-    save_img(nps_2d_fov,os.path.join(output,'noise_fov.nps_2d.png'))
+    save_img(nps_2d,os.path.join(output,'ndct_qdct.nps_2d.png'))
+    save_img(nps_2d_fov,os.path.join(output,'ndct_qdct_fov.nps_2d.png'))
     
     pred_nps_2d = get_nps_2d_img(pred_noise)
     pred_nps_2d_fov = get_nps_2d_img(pred_noise_fov)
-    save_img(pred_nps_2d,os.path.join(output,'pred_noise.nps_2d.png'))
-    save_img(pred_nps_2d_fov,os.path.join(output,'pred_noise_fov.nps_2d.png'))
+    save_img(pred_nps_2d,os.path.join(output,'pred_qdct.nps_2d.png'))
+    save_img(pred_nps_2d_fov,os.path.join(output,'pred_qdct_fov.nps_2d.png'))
+    
+    ndct_fov_nps_2d = get_nps_2d_img(ndct_fov,bx=1.,by=1.)
+    qdct_fov_nps_2d = get_nps_2d_img(qdct_fov,bx=1.,by=1.)
+    pred_fov_nps_2d = get_nps_2d_img(pred_fov,bx=1.,by=1.)
+    save_img(ndct_fov_nps_2d,os.path.join(output,'ndct_fov.nps_2d.png'))
+    save_img(qdct_fov_nps_2d,os.path.join(output,'qdct_fov.nps_2d.png'))
+    save_img(pred_fov_nps_2d,os.path.join(output,'pred_fov.nps_2d.png'))
     
     results = dict(
-        ndct_result_1d = get_radial_nps(ndct_img)[1],
-        qdct_result_1d = get_radial_nps(qdct_img)[1],
-        pred_result_1d = get_radial_nps(pred_img)[1],
+        ndct_result_1d = get_radial_nps(ndct_img,rad=rad,bdia_n=bdia_n)[1],
+        qdct_result_1d = get_radial_nps(qdct_img,rad=rad,bdia_n=bdia_n)[1],
+        pred_result_1d = get_radial_nps(pred_img,rad=rad,bdia_n=bdia_n)[1],
 
-        ndct_fov_result_1d = get_radial_nps(ndct_fov)[1],
-        qdct_fov_result_1d = get_radial_nps(qdct_fov)[1],
-        pred_fov_result_1d = get_radial_nps(pred_fov)[1],
+        ndct_fov_result_1d = get_radial_nps(ndct_fov,rad=rad,bdia_n=bdia_n)[1],
+        qdct_fov_result_1d = get_radial_nps(qdct_fov,rad=rad,bdia_n=bdia_n)[1],
+        pred_fov_result_1d = get_radial_nps(pred_fov,rad=rad,bdia_n=bdia_n)[1],
     )
     
     with open(os.path.join(output,'combined.pkl'),'wb') as f:
         pickle.dump(results,f)
+    
+    
     
