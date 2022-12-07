@@ -167,7 +167,7 @@ def main(ndct_img,
          pred_img,
          output='./output',
          x_0=220,y_0=128,fov_size=128,bx=1.,by=1.,
-         rad=30,
+         rad=20,
          bdia_n=10,
         ):
     output = os.path.abspath(output)
